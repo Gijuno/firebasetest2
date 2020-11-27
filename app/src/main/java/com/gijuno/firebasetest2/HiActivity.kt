@@ -10,20 +10,26 @@ import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
+import android.util.Log
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.tasks.OnCompleteListener
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.iid.FirebaseInstanceId
+import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.android.synthetic.main.activity_hi.*
 import java.util.*
 
 
-class HiActivity : AppCompatActivity() {
 
+class HiActivity : AppCompatActivity() {
     //firebase Auth
     private lateinit var firebaseAuth: FirebaseAuth
     //google client
@@ -46,33 +52,54 @@ class HiActivity : AppCompatActivity() {
         }
     }
 
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_hi)
 
+
+        FirebaseMessaging.getInstance().token.addOnCompleteListener(OnCompleteListener { task ->
+            if (!task.isSuccessful) {
+                Log.d("asdf", "Fetching FCM registration token failed", task.exception)
+                return@OnCompleteListener
+            }
+
+            // Get new FCM registration token
+            val token = task.result
+
+            // Log and toast
+            val msg = getString(R.string.msg_token_fmt, token)
+            Log.d("asdf", msg)
+            Toast.makeText(baseContext, msg, Toast.LENGTH_SHORT).show()
+        })
+
+
+
         val NOTIFICATION_ID = 1001;
         createNotificationChannel(this, NotificationManagerCompat.IMPORTANCE_HIGH,
-            false, getString(R.string.app_name), "App notification channel") // 1
+            false, getString(R.string.app_name), "App notification channel")
 
-        val channelId = "$packageName-${getString(R.string.app_name)}" // 2
+
+        /** *노티 형식 바꾸기 !!! */
+        val channelId = "$packageName-${getString(R.string.app_name)}"
         val title = "Android Developer"
         val content = "Notifications in Android holy moly hohohohohohohohohohohohohohohohohohohohohohohohoho"
 
         val intent = Intent(baseContext, this::class.java)
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         val pendingIntent = PendingIntent.getActivity(baseContext, 0,
-            intent, PendingIntent.FLAG_UPDATE_CURRENT)    // 3
+            intent, PendingIntent.FLAG_UPDATE_CURRENT)
 
-        val builder = NotificationCompat.Builder(this, channelId)  // 4
-        builder.setSmallIcon(R.drawable.common_google_signin_btn_icon_light)    // 5
-        builder.setContentTitle(title)    // 6
-        builder.setContentText(content)    // 7
+        val builder = NotificationCompat.Builder(this, channelId)
+        builder.setSmallIcon(R.drawable.common_google_signin_btn_icon_light)
+        builder.setContentTitle(title)
+        builder.setContentText(content)
         builder.priority = NotificationCompat.PRIORITY_HIGH
-        //builder.setAutoCancel(true)   // 9
-        builder.setContentIntent(pendingIntent)   // 10
+        //builder.setAutoCancel(true)
+        builder.setContentIntent(pendingIntent)
 
         val notificationManager = NotificationManagerCompat.from(this)
-           // 11
 
         test_btn.setOnClickListener {
             Handler().postDelayed({notificationManager.notify(NOTIFICATION_ID, builder.build())}, 3000)
@@ -113,6 +140,8 @@ class HiActivity : AppCompatActivity() {
             fbFirestore?.collection("users")?.document(fbAuth?.uid.toString())?.set(userInfo)
         }
     }
+
+
 
     private fun signOut() { // 로그아웃
         // Firebase sign out
